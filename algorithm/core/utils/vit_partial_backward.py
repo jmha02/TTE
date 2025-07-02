@@ -150,7 +150,7 @@ def nelem_saved_for_backward_vit(model, sample_input, backward_config, verbose=T
             # Layer is being updated
             this_weight_size = linear.bias.numel() * bias_bits
             this_momentum_size = linear.bias.numel() * momentum_bits
-            this_activation_size = np.product(linear.input_shape) * activation_bits // linear.input_shape[0]  # Exclude batch dim
+            this_activation_size = np.prod(linear.input_shape) * activation_bits // linear.input_shape[0]  # Exclude batch dim
 
             if linear.weight.grad is not None:
                 # Weight is also being updated

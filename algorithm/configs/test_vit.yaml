@@ -1,0 +1,51 @@
+run_dir: ./runs/test_vit
+manual_seed: 0
+evaluate: false
+ray_tune: 0
+resume: 0
+
+data_provider:
+  dataset: image_folder
+  root: ../synthetic_dataset
+  resize_scale: 0.875
+  color_aug: 0.4
+  base_batch_size: 16
+  n_worker: 4
+  image_size: 224
+  num_classes: 2
+
+run_config:
+  n_epochs: 3
+  base_lr: 0.001
+  bs256_lr: null
+  warmup_epochs: 1
+  warmup_lr: 0
+  lr_schedule_name: cosine
+  weight_decay: 0.05
+  no_wd_keys: ['norm', 'bias', 'pos_embed', 'cls_token']
+  optimizer_name: sgd
+  bias_only: 0
+  fc_only: 0
+  fc_lr10: 0
+  eval_per_epochs: 1
+  grid_output: null
+  grid_ckpt_path: null
+  n_block_update: -1
+
+net_config:
+  net_name: vit_small_patch16_224
+  model_type: fp
+  pretrained: false
+  cls_head: linear
+  dropout: 0.1
+
+backward_config:
+  enable_backward_config: 1
+  n_bias_update: 8
+  vit_layer_types: ['attention', 'head']
+  weight_update_ratio: 0.25
+  weight_select_criteria: magnitude+
+  manual_weight_idx: null
+  quantize_gradient: 0
+  freeze_fc: 0
+  train_scale: 0

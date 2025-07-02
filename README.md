@@ -1,86 +1,139 @@
-# On-Device Training Under 256KB Memory 
+# TTE
 
-### [[TinyML Project Website]](https://hanlab.mit.edu/projects/tinyml) | [[Paper]](https://arxiv.org/abs/2206.15472) | [[Website]](https://hanlab.mit.edu/projects/mcunetv3) | [[YouTube]](https://www.youtube.com/watch?v=0pUFZYdoMY8) | [[BiliBili]](https://www.bilibili.com/video/BV1qv4y1d7MV)
+### Key Innovations
 
+1. **System-Algorithm Co-Design**: Joint optimization of training algorithms and system implementation
+2. **Quantization-Aware Scaling (QAS)**: Automatic gradient scaling for stable INT8 training
+3. **Sparse Update**: Selective parameter updates based on importance analysis
+4. **Compile-Time Autodiff**: Moving gradient computation from runtime to compile-time
+5. **Multi-Architecture Support**: Both ConvNets (quantized) and Vision Transformers (FP32)
 
-![demo_v3](figures/mcunetV3_demo_2images_openmv.gif)
+## Architecture
 
-# News
-If you are interested in getting updates, please sign up [here](https://forms.gle/UW1uUmnfk1k6UJPPA) to get notified.
+The Tiny Training Engine consists of three main components working together:
 
-* [03/06/2024] We release a [new demo video](https://www.youtube.com/watch?v=0pUFZYdoMY8) of [On-Device Training Under 256KB Memory](https://arxiv.org/abs/2206.15472).
-* [10/13/2023] [Tiny Machine Learning: Progress and Futures \[Feature\]](https://hanlab.mit.edu/projects/tinyml-magazine) appears at IEEE CAS Magazine.
-* [11/28/2022] Our poster session is on Wed Nov 30 11:00 am-1:00 pm (New Orleans time)@ Hall J #702. Stop by if you are interested!
-* [10/04/2022] Our paper on tiny on-device training is highlighted on the [MIT homepage](http://web.mit.edu/spotlight/learning-edge/)!
-* [09/16/2022] Our paper is accepted to NeurIPS 2022!
-* [06/30/2022] Our [paper](https://arxiv.org/abs/2206.15472) is released on arXiv.
+### 1. Algorithm Layer (`algorithm/`)
+- **Quantization-Aware Scaling**: Stabilizes INT8 gradient computation
+- **Sparse Update Strategies**: Memory-efficient parameter selection
+- **Multi-Model Support**: ConvNets and Vision Transformers
+- **Memory Budget Planning**: Configurable memory constraints
 
-# Overview
+### 2. Compilation System (`compilation/`)
+- **IR Translation**: PyTorch → TVM IR → Training Graph
+- **Compile-Time Autodiff**: Pre-computed gradient operations
+- **Graph Optimization**: Pruning and reordering for efficiency
+- **Sparse Integration**: Hardware-aware sparse pattern optimization
 
-In the past, DNNs training happens on the cloud. Can we learn on the edge? The large memory usage is the challenge. The tight memory budget (50,000x smaller than GPUs) makes deep learning deployment difficult even for inference, let alone training.
+### 3. Runtime System
+- **TinyEngine Backend**: MCU-optimized execution engine
+- **Memory Management**: Dynamic allocation with 256KB budget
+- **Kernel Optimization**: Hand-tuned operations for edge devices
 
-![teaser](https://github.com/mit-han-lab/mcunet/blob/master/assets/figures/memory_size.png?raw=true)
+## Supported Models
 
-In this work, we enable on-device training under 256KB memory, using less than 1/1000 memory of PyTorch while matching the accuracy on the visual wake words application using **system-algorithm co-design**. 
+### Quantized ConvNets (INT8 Training)
+| Model | Parameters | ImageNet Acc | Memory Budget | Use Case |
+|-------|------------|--------------|---------------|----------|
+| MobileNetV2-0.35 | 1.7M | 45.7% | 49-138KB | Ultra-low power |
+| MCUNet-5fps | 1.1M | 54.1% | 49-148KB | Real-time inference |
+| ProxylessNet-0.3 | 2.1M | 48.3% | 49-148KB | Balanced accuracy |
 
-![](figures/mem_comparison.png)
+### Vision Transformers (FP32 Training)
+| Model | Parameters | Architecture | Memory Budget | Use Case |
+|-------|------------|--------------|---------------|----------|
+| ViT-Small | 21.7M | 12L, 6H, 384D | 100-200KB | Attention mechanisms |
+| ViT-Base | *Future* | 12L, 12H, 768D | *Planned* | Larger capacity |
 
-Our work contains three parts to achieve efficient on-device training: 
-1. Quantization-aware scaling and sparse update (algorithm)
-2. Compile-time autodiff and system support for sparse update (system)
-3. Codegen with TinyEngine backend (system)
+## System Components
 
-If you are interested in the full-stack optimization of the system, you can go over each step one by one. If you are only interested in building a tiny training demo, you may directly refer to [Tiny Training Engine](https://github.com/mit-han-lab/tinyengine/tree/master/tutorial/training) for the demo setup.
+### Algorithm Components (`algorithm/`)
 
-## 1. Quantization-aware Scaling (QAS) and Sparse Update
-
-In order to optimize a real quantized graph (see difference below),  we propose Quantization-aware Scaling (QAS) to automatically scale the gradient, which effectively stabilizes the training and matches the FP32 accuracy 
-
-<p align="center">
-    <img src="figures/real_vs_fake_quantization.png" width="80%">
-</p>
-
-![](figures/qas_accuracy.png)
-
-We further design sparse layer and sparse tensor update to skip the gradient computation of less important layers and sub-tensors, where the best sparsity under varying memory budgets  is find an automated method based on the contribution analysis.
-
-![](figures/sparse_update.png)
-
-We provides scripts to evaluate the accuracy of QAS and Sparse Update in the [algorithm](algorithm/) folder, and we will use the pretrained models and sparse update scheme for our next step compilation.
-
-## 2. Compile-time Autodiff and System Support for Sparse Update
-
-Another highlight of our work is Tiny Training Engine (TTE), which offloads auto-diff from run-time to compile-time and uses codegen to minimize run-time overhead. It also supports graph pruning and reordering to support sparse updates, translating the theoretical numbers into measured memory saving and speedup.
-
-![](figures/compiler_stack.png)
-
-The code related to compilation, autodiff, and system support for sparse update are provided in the [compilation](compilation/) folder. It will translate the pytorch models into an intermediate representation (IR), perform the autodiff at compile-time, and the apply the sparse update rules to reduce memory usage. Finally, the pruned training graph will be translated into a JSON file to ease MCU deployment.
-
-## 3. Codegen with TinyEngine Backend
-
-After obtaining the JSON representation of training graphs, the next step is to follow the [tutorial in Tiny Training Engine](https://github.com/mit-han-lab/tinyengine/tree/master/tutorial/training) to deploy the model to the MCU to compile the demo shown at the beginning. Our optimized kernels and co-designs not only enable training under 256KB but also achieve faster speed than conventional implementations such as TF-Lite.
-
-![](figures/latency_peakmem_comparison.png)
-
-## Citation
-
+#### Core Architecture
 ```
- @inproceedings{lin2022ondevice,
-    title     = {On-Device Training Under 256KB Memory},
-    author    = {Lin, Ji and Zhu, Ligeng and Chen, Wei-Ming and Wang, Wei-Chen and Gan, Chuang and Han, Song},
-    booktitle = {Annual Conference on Neural Information Processing Systems (NeurIPS)},
-    year      = {2022}
-} 
+algorithm/
+├── core/
+│   ├── model/           # Model builders (ConvNet + ViT)
+│   ├── dataset/         # Data loading and augmentation
+│   ├── optimizer/       # SGD with quantization-aware scaling
+│   ├── trainer/         # Training loops and validation
+│   └── utils/           # Sparse update and memory planning
+├── configs/             # YAML configuration files
+├── quantize/            # INT8 quantization and operators
+└── train_cls.py         # Main training script
 ```
 
-## Related Work
+#### Key Files
+- **`train_cls.py`**: Main training entry point with dual model support
+- **`core/model/model_entry.py`**: Model factory for ConvNets and ViTs
+- **`core/utils/partial_backward.py`**: ConvNet sparse update logic
+- **`core/utils/vit_partial_backward.py`**: ViT sparse update logic
+- **`quantize/quantized_ops_diff.py`**: Differentiable quantized operators
 
-* [MCUNet: Tiny Deep Learning on IoT Devices](https://hanlab.mit.edu/projects/mcunet) (NeurIPS'20)
-* [MCUNetV2: Memory-Efficient Patch-based Inference for Tiny Deep Learning](https://hanlab.mit.edu/projects/mcunetv2) (NeurIPS'21)
-* [TinyTL: Reduce Activations, Not Trainable Parameters for Efficient On-Device Learning](https://tinytl.mit.edu/) (NeurIPS'20)
-* [Network Augmentation for Tiny Deep Learning](https://github.com/mit-han-lab/tinyml/raw/master/netaug/figures/fig3.png) (ICLR'22)
+### Compilation System (`compilation/`)
 
+#### Pipeline Overview
+```
+compilation/
+├── convert/             # Model format converters
+│   ├── pth_utils.py     # PyTorch → TVM IR
+│   ├── vit_utils.py     # ViT-specific conversions
+│   └── mcunetv3_wrapper.py  # Quantized operator wrappers
+├── autodiff/            # Compile-time differentiation
+│   ├── auto_diff.py     # Main autodiff engine
+│   ├── diff_ops.py      # Gradient operator definitions
+│   └── mcuop.py         # MCU-optimized operations
+├── ir_utils/            # IR manipulation utilities
+├── mcu_ir_gen.py        # IR generation script
+└── ir2json.py           # JSON export for MCU deployment
+```
 
-## License
+#### Compilation Flow
+1. **Model Loading**: Load PyTorch model with sparse config
+2. **IR Translation**: Convert to TVM intermediate representation
+3. **Autodiff Generation**: Create backward computation graph
+4. **Sparse Optimization**: Apply memory-aware pruning
+5. **Code Generation**: Export optimized operators
+6. **MCU Packaging**: Bundle for microcontroller deployment
 
-This repository is released under the MIT license. See [LICENSE](LICENSE) for additional details.
+### Model Implementations
+
+#### ConvNet Models (`algorithm/core/ofa_nn/networks/`)
+- **MobileNetV2**: Depthwise separable convolutions
+- **ProxylessNets**: Neural architecture search optimized
+- **MCUNet**: Memory-constraint aware design
+
+#### ViT Implementation (`algorithm/core/ofa_nn/networks/vit_small.py`)
+```python
+class VisionTransformerSmall(MyNetwork):
+    def __init__(self, embed_dim=384, depth=12, num_heads=6):
+        self.patch_embed = PatchEmbed(patch_size=16, embed_dim=embed_dim)
+        self.blocks = nn.ModuleList([
+            TransformerBlock(dim=embed_dim, num_heads=num_heads)
+            for _ in range(depth)
+        ])
+        self.head = nn.Linear(embed_dim, num_classes)
+    
+    def get_sparse_update_layers(self):
+        # Returns layer names for sparse targeting
+        return ['blocks.*.attn.qkv', 'blocks.*.attn.proj', 'head']
+```
+
+## Development Guide
+
+### Code Organization
+
+**Algorithm Development:**
+- Models: `algorithm/core/ofa_nn/networks/`
+- Training: `algorithm/core/trainer/`
+- Sparse Logic: `algorithm/core/utils/*_partial_backward.py`
+- Configs: `algorithm/configs/`
+
+**System Development:**
+- IR Generation: `compilation/convert/`
+- Autodiff: `compilation/autodiff/`
+- Optimization: `compilation/ir_utils/`
+
+**Testing:**
+- Integration Tests: `test_vit_integration.py`
+- Training Examples: `run_vit_training.py`
+- Unit Tests: Throughout codebase

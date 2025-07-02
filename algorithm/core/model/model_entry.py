@@ -9,7 +9,7 @@ __all__ = ['build_mcu_model', 'build_fp_model']
 
 def build_mcu_model():
     cfg_path = f"assets/mcu_models/{configs.net_config.net_name}.pkl"
-    cfg = torch.load(cfg_path)
+    cfg = torch.load(cfg_path, weights_only=False)
     
     model = build_quantized_network_from_cfg(cfg, n_bit=8)
 

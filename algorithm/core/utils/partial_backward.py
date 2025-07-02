@@ -154,7 +154,7 @@ def nelem_saved_for_backward(model, sample_input, backward_config, verbose=True,
         if conv.bias.grad is not None:  # this layer is updated
             # TODO: the mask and input might be counted twice; maybe we should fix this (or not, depends on impl.)?
             # if update, always update bias
-            this_activation_size = np.product(conv.output_shape[1:]) * 1  # binary mask
+            this_activation_size = np.prod(conv.output_shape[1:]) * 1  # binary mask
             this_weight_size = conv.bias.numel() * bias_bits
             this_momentum_size = conv.bias.numel() * momentum_bits
 
@@ -164,7 +164,7 @@ def nelem_saved_for_backward(model, sample_input, backward_config, verbose=True,
                     weight_shape = conv.weight.shape  # o, 1, k, k
                     grad_norm = torch.norm(conv.weight.grad.data.view(weight_shape[0], -1), dim=1)
                     channels = (grad_norm > 0).sum().item()
-                    this_activation_size += np.product(conv.input_shape[2:]) * channels * activation_bits
+                    this_activation_size += np.prod(conv.input_shape[2:]) * channels * activation_bits
                     this_weight_size += (channels * weight_shape[2] * weight_shape[3]) * weight_bits
                     this_momentum_size += (channels * weight_shape[2] * weight_shape[3]) * momentum_bits
                 else:
@@ -177,7 +177,7 @@ def nelem_saved_for_backward(model, sample_input, backward_config, verbose=True,
                         channels = conv.in_channels  # save all input channels
                         weight_elem = conv.weight.data.numel()  # update all weights
 
-                    this_activation_size += np.product(conv.input_shape[2:]) * channels * activation_bits
+                    this_activation_size += np.prod(conv.input_shape[2:]) * channels * activation_bits
                     this_weight_size += weight_elem * weight_bits
                     this_momentum_size += weight_elem * momentum_bits
 

@@ -88,12 +88,22 @@ def main():
         trainer.resume()  # trying to resume
 
     if configs.backward_config.enable_backward_config:
-        from core.utils.partial_backward import parsed_backward_config, prepare_model_for_backward_config, \
-            get_all_conv_ops
-        configs.backward_config = parsed_backward_config(configs.backward_config, model)
-        prepare_model_for_backward_config(model, configs.backward_config)
-        logger.info(f'Getting backward config: {configs.backward_config} \n'
-                    f'Total convs {len(get_all_conv_ops(model))}')
+        # Check if model is ViT-based for backward config
+        if hasattr(configs.net_config, 'model_type') and configs.net_config.model_type == 'fp':
+            from core.utils.vit_partial_backward import parsed_vit_backward_config, prepare_vit_model_for_backward_config, \
+                get_all_linear_ops_with_names
+            configs.backward_config = parsed_vit_backward_config(configs.backward_config, model)
+            prepare_vit_model_for_backward_config(model, configs.backward_config)
+            linears, names = get_all_linear_ops_with_names(model)
+            logger.info(f'Getting ViT backward config: {configs.backward_config} \n'
+                        f'Total linear layers {len(linears)}')
+        else:
+            from core.utils.partial_backward import parsed_backward_config, prepare_model_for_backward_config, \
+                get_all_conv_ops
+            configs.backward_config = parsed_backward_config(configs.backward_config, model)
+            prepare_model_for_backward_config(model, configs.backward_config)
+            logger.info(f'Getting backward config: {configs.backward_config} \n'
+                        f'Total convs {len(get_all_conv_ops(model))}')
 
     if configs.evaluate:
         val_info_dict = trainer.validate()
