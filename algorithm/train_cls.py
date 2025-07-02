@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 import torch.utils.data.distributed
 
 from core.utils import dist
-from core.model import build_mcu_model
+from core.model import build_mcu_model, build_fp_model
 from core.utils.config import configs, load_config_from_file, update_config_from_args, update_config_from_unknown_args
 from core.utils.logging import logger
 from core.dataset import build_dataset
@@ -67,7 +67,10 @@ def main():
         )
 
     # create model
-    model = build_mcu_model().cuda()
+    if hasattr(configs.net_config, 'model_type') and configs.net_config.model_type == 'fp':
+        model = build_fp_model().cuda()
+    else:
+        model = build_mcu_model().cuda()
 
     if dist.size() > 1:
         model = torch.nn.parallel.DistributedDataParallel(

@@ -60,8 +60,13 @@ class ClassificationTrainer(BaseTrainer):
 
                 # partial update config
                 if configs.backward_config.enable_backward_config:
-                    from core.utils.partial_backward import apply_backward_config
-                    apply_backward_config(self.model, configs.backward_config)
+                    # Check if model is ViT-based
+                    if hasattr(configs.net_config, 'model_type') and configs.net_config.model_type == 'fp':
+                        from core.utils.vit_partial_backward import apply_vit_backward_config
+                        apply_vit_backward_config(self.model, configs.backward_config)
+                    else:
+                        from core.utils.partial_backward import apply_backward_config
+                        apply_backward_config(self.model, configs.backward_config)
 
                 if hasattr(self.optimizer, 'pre_step'):  # for SGDScale optimizer
                     self.optimizer.pre_step(self.model)

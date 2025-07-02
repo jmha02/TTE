@@ -1,0 +1,59 @@
+run_dir: ../runs/vit_sparse_demo
+manual_seed: 0
+evaluate: false
+ray_tune: 0
+resume: 0
+
+data_provider:
+  dataset: image_folder
+  root: ../synthetic_dataset
+  resize_scale: 0.875
+  color_aug: 0.4
+  base_batch_size: 4
+  n_worker: 2
+  image_size: 224
+  num_classes: 2
+
+run_config:
+  # learning rate
+  n_epochs: 3
+  base_lr: 0.001
+  bs256_lr: null
+  warmup_epochs: 1
+  warmup_lr: 0
+  lr_schedule_name: cosine
+  # weight decay
+  weight_decay: 0.01
+  no_wd_keys: ['norm', 'bias', 'pos_embed', 'cls_token']
+  # optimizer
+  optimizer_name: sgd
+  bias_only: 0
+  fc_only: 0
+  fc_lr10: 0
+  # eval sparsely
+  eval_per_epochs: 1
+  # grid search fine-tuning
+  grid_output: null
+  grid_ckpt_path: null
+  # partial blocks for fp32
+  n_block_update: -1
+
+net_config:
+  net_name: vit_small_patch16_224
+  model_type: fp  # Floating point (non-quantized)
+  pretrained: false
+  cls_head: linear
+  dropout: 0.1
+
+backward_config:
+  enable_backward_config: 1
+  # Conservative sparse update for demo
+  n_bias_update: 8  # Update fewer layers
+  n_weight_update: null
+  vit_layer_types: ['attention', 'head']  # Focus on attention and head
+  weight_update_ratio: 0.25  # Update 25% of features for memory efficiency
+  weight_select_criteria: magnitude+
+  manual_weight_idx: null
+  quantize_gradient: 0
+  freeze_fc: 0
+  train_scale: 0

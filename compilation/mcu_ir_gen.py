@@ -8,6 +8,7 @@ from compilation.convert import (
     pth_model_to_ir,
     generated_backward_graph
 )
+from compilation.convert.vit_utils import vit_model_to_ir, build_vit_training_ir
 
 # some configs
 model_name = "mcunet"
@@ -76,7 +77,28 @@ elif model_name == "proxyless":
             'enable_backward_config': 1, 'n_bias_update': 45, 'n_weight_update': 0, 'weight_update_ratio': [1, 1, 1, 1, 1, 1, 1, 1], 'manual_weight_idx': [36, 39, 42, 45, 48, 51, 54, 57], 'weight_select_criteria': 'magnitude+', 'pw1_weight_only': 0
         }
     }
-fwd_mod, real_params, scale_params, op_idx = pth_model_to_ir(model, input_res=[1, 3, rs, rs], num_classes=num_classes)
+elif model_name == "vit_small":
+    from algorithm.core.ofa_nn.networks import vit_small_patch16_224
+    path = "ir_zoos/vit_small_quantize"
+    model = vit_small_patch16_224(num_classes=num_classes)
+    sparse_update_config = {
+        "100kb": {
+            'enable_backward_config': 1, 'n_bias_update': 8, 'n_weight_update': 0, 'vit_layer_types': ['attention', 'head'], 'weight_update_ratio': 0.25, 'weight_select_criteria': 'magnitude+', 'manual_weight_idx': None
+        },
+        "150kb": {
+            'enable_backward_config': 1, 'n_bias_update': 12, 'n_weight_update': 0, 'vit_layer_types': ['attention', 'mlp'], 'weight_update_ratio': 0.5, 'weight_select_criteria': 'magnitude+', 'manual_weight_idx': None
+        },
+        "200kb": {
+            'enable_backward_config': 1, 'n_bias_update': 18, 'n_weight_update': 0, 'vit_layer_types': ['attention', 'mlp', 'head'], 'weight_update_ratio': 0.75, 'weight_select_criteria': 'magnitude+', 'manual_weight_idx': None
+        }
+    }
+# Generate forward IR based on model type
+if model_name == "vit_small":
+    # For ViT models, use different IR generation
+    fwd_mod, real_params, op_idx = vit_model_to_ir(model, input_shape=[1, 3, rs, rs])
+    scale_params = {}  # ViT doesn't use quantization scales
+else:
+    fwd_mod, real_params, scale_params, op_idx = pth_model_to_ir(model, input_res=[1, 3, rs, rs], num_classes=num_classes)
 
 from tvm.relay import ExprFunctor, ExprMutator, ExprVisitor
 from tvm import relay
